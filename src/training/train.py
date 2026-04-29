@@ -70,6 +70,14 @@ def train(
     fixed_batch, _ = next(iter(train_loader))
     fixed_batch = fixed_batch[:8].to(device)
 
+    # Live progress bar for notebook / terminal. tqdm.auto picks the right
+    # frontend (ipywidgets in Jupyter, plain text otherwise).
+    try:
+        from tqdm.auto import tqdm
+        pbar = tqdm(total=total_steps, desc="train", dynamic_ncols=True)
+    except ImportError:
+        pbar = None
+
     step = 0
     accum = 0
     optim.zero_grad()
@@ -96,14 +104,21 @@ def train(
 
                 running += loss.item() * accumulate_every
                 running_n += 1
+                if pbar is not None:
+                    pbar.update(1)
+                    pbar.set_postfix(loss=f"{running / max(running_n, 1):.4f}")
 
                 if step % log_every == 0:
                     elapsed = time.time() - t_start
-                    print(
+                    msg = (
                         f"step {step:>6d}/{total_steps}  "
                         f"loss {running / running_n:.4f}  "
                         f"({step / elapsed:.1f} it/s)"
                     )
+                    if pbar is None:
+                        print(msg, flush=True)
+                    else:
+                        pbar.write(msg)
                     running, running_n = 0.0, 0
 
                 if step % sample_every == 0:
@@ -130,6 +145,8 @@ def train(
 
                 if step >= total_steps:
                     break
+    if pbar is not None:
+        pbar.close()
     return ema
 
 
