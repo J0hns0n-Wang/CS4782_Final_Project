@@ -64,9 +64,10 @@ def evaluate_diffusion(diffusion, test_loader, device: str = "cuda",
             break
         x0 = x0.to(device)
         t_full = torch.full((x0.shape[0],), T, device=device, dtype=torch.long)
-        xT = diffusion.q_sample(x0, t_full)
+        state = diffusion.sample_state(x0)
+        xT = diffusion.q_sample(x0, t_full, state=state)
         x_direct = diffusion.predict_x0(xT, t_full).clamp(0, 1)
-        x_sampled = diffusion.sample_improved(xT).clamp(0, 1)
+        x_sampled = diffusion.sample_improved(xT, state=state).clamp(0, 1)
 
         real_batches.append(x0.cpu())
         deg_batches.append(xT.clamp(0, 1).cpu())

@@ -116,6 +116,25 @@ def test_train_one_step():
     print("  train loop ran 2 steps")
 
 
+def test_state_consistency():
+    """Two q_sample calls with the same state must use the same mask."""
+    deg = GaussianMaskInpainting(image_size=H, T=50, randomize_center=True)
+    net = UNet(image_size=H)
+    diff = ColdDiffusion(net, deg, T=50)
+
+    state = diff.sample_state(x0)
+    t = torch.full((B,), 25, dtype=torch.long)
+    a = diff.q_sample(x0, t, state=state)
+    b = diff.q_sample(x0, t, state=state)
+    assert torch.allclose(a, b), "same-state q_sample produced different outputs"
+
+    # Without state, two calls should disagree (centers re-sampled).
+    c = diff.q_sample(x0, t)
+    d = diff.q_sample(x0, t)
+    assert not torch.allclose(c, d), "stateless q_sample should re-randomize"
+    print("  state consistency ok (with state: identical, without state: differ)")
+
+
 def test_generation():
     deg = GenerativeInpainting(image_size=H, T=50)
     net = UNet(image_size=H)
@@ -132,5 +151,6 @@ if __name__ == "__main__":
     print("== ColdDiffusion ==");         test_cold_diffusion_loss_and_samplers()
     print("== EMA ==");                   test_ema()
     print("== Train loop ==");            test_train_one_step()
+    print("== State consistency =="); test_state_consistency()
     print("== Cold generation ==");       test_generation()
     print("\nAll smoke tests passed.")

@@ -28,11 +28,12 @@ def save_progress_grid(diffusion: ColdDiffusion, ema: EMA, x0_sample: torch.Tens
     diffusion_eval.eval()
 
     t_full = torch.full((x0_sample.shape[0],), t_max, device=x0_sample.device, dtype=torch.long)
-    xT = diffusion_eval.q_sample(x0_sample, t_full)
+    state = diffusion_eval.sample_state(x0_sample)
+    xT = diffusion_eval.q_sample(x0_sample, t_full, state=state)
 
     with torch.no_grad():
         x0_direct = diffusion_eval.predict_x0(xT, t_full).clamp(0, 1)
-        x0_sampled = diffusion_eval.sample_improved(xT).clamp(0, 1)
+        x0_sampled = diffusion_eval.sample_improved(xT, state=state).clamp(0, 1)
 
     grid = torch.cat([xT.clamp(0, 1), x0_direct, x0_sampled, x0_sample], dim=0)
     save_image(grid, out_path, nrow=x0_sample.shape[0])
