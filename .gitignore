@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pt
+*.pth
+*.ckpt
+.ipynb_checkpoints/
+data/cifar-10-batches-py/
+data/cifar-10-python.tar.gz
+results/checkpoints/
+results/samples/
+.venv/
+venv/
+.DS_Store
+.vscode/
+.idea/
+wandb/
