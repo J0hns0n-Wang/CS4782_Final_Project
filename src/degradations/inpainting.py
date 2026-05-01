@@ -65,7 +65,7 @@ class GaussianMaskInpainting(nn.Module):
     def _single_mask(self, beta: torch.Tensor, cx: torch.Tensor, cy: torch.Tensor) -> torch.Tensor:
         dx = self.xx[None] - cx[:, None, None]
         dy = self.yy[None] - cy[:, None, None]
-        g = torch.exp(-(dx ** 2 + dy ** 2) / (2.0 * beta[:, None, None] ** 2))
+        g = torch.exp(-(dx ** 2 + dy ** 2) / (2.0 * beta[:, None, None]))
         return 1.0 - g
 
     def cumulative_mask(
