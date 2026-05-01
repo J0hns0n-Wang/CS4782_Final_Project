@@ -27,7 +27,7 @@ class GaussianMaskInpainting(nn.Module):
         T: int = 50,
         beta_start: float = 1.0,
         beta_step: float = 0.1,
-        randomize_center: bool = False,
+        randomize_center: bool = True,
     ):
         super().__init__()
         self.image_size = image_size
