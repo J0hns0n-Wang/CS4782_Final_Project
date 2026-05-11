@@ -1,7 +1,7 @@
 # Data
 
 CIFAR-10 is downloaded automatically by `torchvision.datasets.CIFAR10` the
-first time `code/training/dataset.py` is invoked. The download lands here
+first time `src/training/dataset.py` is invoked. The download lands here
 under `data/cifar-10-batches-py/`.
 
 If you prefer manual download:

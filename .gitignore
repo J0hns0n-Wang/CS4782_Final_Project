@@ -9,6 +9,7 @@ data/cifar-10-batches-py/
 data/cifar-10-python.tar.gz
 results/checkpoints/
 results/samples/
+results/_smoke_run/
 .venv/
 venv/
 .DS_Store

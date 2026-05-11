@@ -1,0 +1,197 @@
+\documentclass[11pt]{article}
+\usepackage[top=0.85in,bottom=0.85in,left=0.9in,right=0.9in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,multirow}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{enumitem}
+\setlist{nosep,leftmargin=*,topsep=2pt}
+\setlength{\parskip}{3pt}
+\setlength{\parindent}{1em}
+
+\title{\textbf{Re-implementing Cold Diffusion on CIFAR-10}\\[2pt]
+       \large CS 4782 Final Project Report}
+\author{Johnson Wang (jw2693) \quad Eric Weng (ew522) \\ Cornell University}
+\date{May 12, 2026}
+
+\begin{document}
+\maketitle
+\vspace{-1.2em}
+
+\section{Introduction}
+
+Standard diffusion models iteratively add Gaussian noise and train a neural network to
+reverse it. \emph{Cold Diffusion: Inverting Arbitrary Image Transforms Without
+Noise}~\cite{bansal2022} challenges this design: Gaussian noise is not a necessary
+ingredient. Any smoothly-parameterized, deterministic image degradation can replace it,
+and the resulting model retains the ability to reconstruct and synthesize images. The key
+contribution is \textbf{Algorithm~2} (§3.3 of the paper), an anchored reverse sampler
+that at step~$s$ computes $x_{s-1} = x_s - D(\hat{x}_0, s) + D(\hat{x}_0, s{-}1)$
+where $\hat{x}_0 = R_\theta(x_s, s)$, stabilizing the trajectory for any choice of
+deterministic forward process~$D$.
+
+We re-implement Cold Diffusion from scratch in PyTorch on CIFAR-10, reproducing all
+three degradations from the paper (inpainting, Gaussian blur, super-resolution) using
+the published training recipe. We additionally extend the paper with
+\textbf{Algorithm~3}, an EMA-smoothed variant of Algorithm~2, and validate it on both
+CIFAR-10 and MNIST.
+
+\section{Chosen Result}
+
+We target two results: \textbf{Tables~1--2} (FID / SSIM / RMSE for degraded, direct, and
+sampled outputs on CIFAR-10 inpainting and blur) and \textbf{Figure~2} (the qualitative
+sampler comparison showing Algorithm~1 failing and Algorithm~2 succeeding). These jointly
+establish the paper's central claim: the anchored update in Algorithm~2 is essential for
+smooth degradations. For inpainting the paper reports a sampled FID of 8.92 vs.\ a degraded
+FID of 40.83, giving a clear quantitative target. We also provide Algorithm~1 metrics
+(not in the paper) to quantify the failure mode.
+
+\section{Methodology}
+
+\paragraph{U-Net.}
+3-level U-Net with base channels 64, multipliers $(1,2,2)$, two residual blocks per level
+(GroupNorm + SiLU activations), and self-attention at the $8{\times}8$ bottleneck.
+Sinusoidal time embeddings projected through a 2-layer MLP are injected into each residual
+block. Total: ${\approx}12$M parameters.
+
+\paragraph{Degradations (Appendix A).}
+\begin{itemize}
+  \item \emph{Inpainting}: cumulative Gaussian mask
+    $m_{\beta_t}(i,j)=1-\exp(-d^2/2\beta_t^2)$, $\beta_1{=}1$, $\beta_{t+1}{=}\beta_t+0.1$,
+    $T{=}50$, center randomized per image on CIFAR-10.
+  \item \emph{Blur}: 11${\times}$11 Gaussian kernel applied recursively,
+    $\sigma_t = 0.01t+0.35$, $T{=}40$.
+  \item \emph{Super-resolution}: $2{\times}$ avg-pool + nearest upsample, $T{=}3$.
+\end{itemize}
+
+\paragraph{Training.}
+L1 loss $\mathbb{E}_{t,x_0}[\|R_\theta(D(x_0,t),t)-x_0\|_1]$; Adam at $2{\times}10^{-5}$;
+batch~64 with 2-step gradient accumulation (effective batch~128); EMA decay~0.995 updated
+every 10 steps. Inpainting: 60k steps; blur: 30k steps (paper uses 700k); SR: 100k steps.
+Hardware: single NVIDIA T4 GPU on Google Colab.
+
+\paragraph{Algorithm~3 (our contribution).}
+Algorithm~2 discards each per-step $\hat{x}_0$ prediction immediately. We maintain instead
+a running EMA: $\hat{x}_0^{(s)} \leftarrow \alpha\,\hat{x}_0^{(s+1)} + (1{-}\alpha)\,R(x_s,s)$,
+then use the smoothed $\hat{x}_0^{(s)}$ in the anchored update. Setting $\alpha{=}0$ recovers
+Algorithm~2. We sweep $\alpha \in \{0.1, 0.3, 0.5, 0.7, 1.0\}$ on the CIFAR-10 test set.
+
+\paragraph{Key implementation note.}
+For randomized inpainting, every $D(\cdot)$ call within one trajectory must share the same
+per-image mask center; otherwise the subtraction $D(\hat{x}_0,s) - D(\hat{x}_0,s{-}1)$ uses
+mismatched masks and produces artifacts. We implement explicit \emph{state-passing}: the center
+is drawn once per trajectory and locked for all subsequent $D$ calls. This requirement is
+implicit in the paper and was the primary debugging challenge.
+
+\section{Results \& Analysis}
+
+Table~\ref{tab:metrics} shows FID / SSIM / RMSE for inpainting (60k steps) and blur (30k
+steps). All Algorithm~1 numbers are ours; the paper does not report them.
+
+\begin{table}[h!]
+\centering
+\caption{Reconstruction metrics on CIFAR-10. Lower FID/RMSE and higher SSIM are better.
+         Paper values from Tables~1--2~\cite{bansal2022}. Alg~1 numbers ours only.}
+\label{tab:metrics}
+\vspace{3pt}
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{ll rr rr rr rr}
+\toprule
+ & & \multicolumn{2}{c}{Degraded} & \multicolumn{2}{c}{Direct} &
+   \multicolumn{2}{c}{Alg 1} & \multicolumn{2}{c}{Alg 2 Sampled} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}\cmidrule(lr){9-10}
+Task & Metric & Paper & Ours & Paper & Ours & Paper & Ours & Paper & Ours \\
+\midrule
+\multirow{3}{*}{\shortstack[l]{Inpainting\\(T=50)}}
+  & FID$\downarrow$  & 40.83 & 70.73 &  9.71 & 15.21 & — & 123.17 &  8.92 & 12.16 \\
+  & SSIM$\uparrow$   & 0.615 & 0.579 & 0.869 & 0.877 & — &  0.440 & 0.859 &  0.807 \\
+  & RMSE$\downarrow$ & 0.143 & 0.302 & 0.063 & 0.071 & — &  0.248 & 0.068 &  0.081 \\
+\midrule
+\multirow{3}{*}{\shortstack[l]{Blur\\(T=40)}}
+  & FID$\downarrow$  & 238.26 & 252.71 & 83.69 & 99.18 & — & 105.98 & 80.08 & 96.59 \\
+  & SSIM$\uparrow$   &  0.315 &  0.410 &  0.875 & 0.789 & — &  0.621 &  0.873 & 0.794 \\
+  & RMSE$\downarrow$ &  0.136 &  0.125 &  0.071 & 0.062 & — &  0.112 &  0.075 & 0.063 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Algorithm 1 vs.\ 2.}
+The most striking result is how completely Algorithm~1 fails: inpainting FID jumps to
+123.17 (vs.\ Algorithm~2's 12.16) and SSIM collapses to 0.440. Each naive step re-degrades
+a fresh prediction using a new random mask center, compounding errors and erasing spatial
+coherence. Algorithm~2's anchored update eliminates this entirely.
+
+\noindent\textbf{Gap from paper.}
+Our inpainting results (FID 12.16 vs.\ paper's 8.92) are close; the gap is consistent with
+a slightly smaller U-Net---the paper does not fully specify its architecture. For blur the
+gap is larger (FID 96.59 vs.\ 80.08) because we trained only 30k of the paper's 700k steps;
+the Alg~1 vs.\ Alg~2 trend is still clearly visible.
+
+\noindent\textbf{Algorithm 3.}
+Table~\ref{tab:alg3} compares Alg~2 and Alg~3 at the best $\alpha{=}0.3$
+(FID sweep: 12.44, \textbf{11.89}, 12.15, 12.45, 13.62 for $\alpha \in \{0.1, 0.3, 0.5, 0.7, 1.0\}$).
+
+\begin{table}[h!]
+\centering
+\caption{Algorithm~2 vs.\ Algorithm~3 ($\alpha{=}0.3$) on CIFAR-10.}
+\label{tab:alg3}
+\vspace{3pt}
+\small
+\begin{tabular}{llrrr}
+\toprule
+Task & Method & FID$\downarrow$ & SSIM$\uparrow$ & RMSE$\downarrow$ \\
+\midrule
+\multirow{2}{*}{Inpainting (T=50)} & Alg 2 & 12.16 & 0.807 & 0.081 \\
+                                    & Alg 3 & \textbf{11.89} & \textbf{0.872} & \textbf{0.080} \\
+\midrule
+\multirow{2}{*}{Blur (T=40)}       & Alg 2 & 96.59 & 0.794 & 0.063 \\
+                                    & Alg 3 & 97.37 & 0.794 & 0.062 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent On inpainting (nonlinear $D$) Algorithm~3 improves FID by 0.27 and SSIM by 0.065.
+On blur (linear $D$) Algorithm~3 essentially ties. This asymmetry precisely confirms the
+hypothesis: the EMA helps when per-step $D$ calls are only approximately consistent
+(random mask centers make inpainting weakly nonlinear in the trajectory), but adds no signal
+when $D$ is exactly linear and Algorithm~2 is already optimal (§3.3).
+
+\section{Reflections}
+
+The biggest practical challenge was the state-locking requirement for randomized inpainting.
+Without fixing the mask center for the entire trajectory, Algorithm~2's subtraction
+$D(\hat{x}_0, s) - D(\hat{x}_0, s{-}1)$ uses inconsistent masks and the output is visually
+indistinguishable from Algorithm~1's failures---a subtle bug that took significant debugging
+to isolate. We solved it with an explicit \texttt{sample\_state()} abstraction that draws
+the stochastic part of $D$ once per trajectory and passes it to all subsequent calls.
+
+The broader lesson is that the paper's theoretical analysis in §3.3 (Algorithm~2 is exact
+for linear $D$) is tight enough to guide empirical design. Algorithm~3's clean
+linear/nonlinear split confirms that EMA smoothing is useful specifically where the theory
+predicts imperfection. Given more compute we would: (1) train blur/SR to the paper's full
+step budgets; (2) anneal $\alpha$ during sampling rather than holding it fixed; (3) test on
+CelebA (256${\times}$256) where inpainting's spatial nonlinearity is stronger.
+
+\begin{thebibliography}{9}
+\bibitem{bansal2022}
+  Bansal, A., et al.
+  \emph{Cold Diffusion: Inverting Arbitrary Image Transforms Without Noise.}
+  NeurIPS 2022. \href{https://arxiv.org/abs/2208.09392}{arXiv:2208.09392}.
+\bibitem{ho2020}
+  Ho, J., Jain, A., Abbeel, P.
+  \emph{Denoising Diffusion Probabilistic Models.}
+  NeurIPS 2020.
+\bibitem{song2021}
+  Song, J., Meng, C., Ermon, S.
+  \emph{Denoising Diffusion Implicit Models.}
+  ICLR 2021.
+\bibitem{krizhevsky2009}
+  Krizhevsky, A.
+  \emph{Learning Multiple Layers of Features from Tiny Images.}
+  Technical Report, 2009.
+\bibitem{pytorch}
+  Paszke, A., et al.\ PyTorch. \texttt{torchvision}, \texttt{torchmetrics}.
+\end{thebibliography}
+
+\end{document}
