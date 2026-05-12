@@ -16,8 +16,8 @@ import torch
 import torch.nn as nn
 from torch.optim import Adam
 
-from src.diffusion.cold import ColdDiffusion
-from src.models.ema import EMA
+from diffusion.cold import ColdDiffusion
+from models.ema import EMA
 
 
 def save_progress_grid(diffusion: ColdDiffusion, ema: EMA, x0_sample: torch.Tensor,
@@ -152,8 +152,8 @@ def train(
 
 
 def _build_diffusion(degradation_name: str, image_size: int, device: str) -> ColdDiffusion:
-    from src.degradations import GaussianMaskInpainting, GaussianBlur
-    from src.models.unet import UNet
+    from degradations import GaussianMaskInpainting, GaussianBlur
+    from models.unet import UNet
 
     if degradation_name == "inpainting":
         deg = GaussianMaskInpainting(image_size=image_size, T=50)
@@ -188,7 +188,7 @@ def main():
     run_name = args.run_name or f"{args.degradation}_cifar10"
     run_dir = os.path.join("results", "checkpoints", run_name)
 
-    from src.training.dataset import cifar10_loaders
+    from training.dataset import cifar10_loaders
 
     train_loader, _ = cifar10_loaders(
         batch_size=args.batch_size,

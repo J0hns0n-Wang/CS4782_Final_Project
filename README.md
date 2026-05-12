@@ -103,8 +103,7 @@ fully specified) to fit single-GPU training.
 `project.ipynb` runs the full pipeline — degradations, training, all three
 samplers, and the FID/SSIM/RMSE evaluation — on both CIFAR-10 and MNIST.
 Training cells auto-skip if a checkpoint is already present in
-`results/checkpoints/<run_name>` (or on Google Drive when run from Colab),
-so you can re-run the notebook in a fresh session without retraining.
+`results/checkpoints/<run_name>`, so you can re-run the notebook without retraining.
 
 ```bash
 pip install -r requirements.txt
@@ -114,8 +113,8 @@ jupyter lab project.ipynb
 ### Compute
 
 GPU is strongly recommended. CIFAR-10 inpainting at 60k steps takes ~6h on
-a modern GPU; the lighter 30k runs (CIFAR blur, MNIST) finish in 1–2h. On
-CPU the smoke test runs in seconds but full training is impractical.
+a modern GPU; the lighter 30k runs (CIFAR blur, MNIST) finish in 1–2h. Full
+training on CPU is impractical.
 
 ## 6. Results / Insights
 
