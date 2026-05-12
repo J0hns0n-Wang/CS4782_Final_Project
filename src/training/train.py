@@ -152,22 +152,15 @@ def train(
 
 
 def _build_diffusion(degradation_name: str, image_size: int, device: str) -> ColdDiffusion:
-    from src.degradations import GaussianMaskInpainting, GaussianBlur, SuperResolution
-    from src.generation.cold_gen import GenerativeInpainting
+    from src.degradations import GaussianMaskInpainting, GaussianBlur
     from src.models.unet import UNet
 
     if degradation_name == "inpainting":
         deg = GaussianMaskInpainting(image_size=image_size, T=50)
         T = 50
-    elif degradation_name == "generative_inpainting":
-        deg = GenerativeInpainting(image_size=image_size, T=50)
-        T = 50
     elif degradation_name == "blur":
         deg = GaussianBlur(kernel_size=11, T=40, sigma_fn=lambda t: 0.01 * t + 0.35)
         T = 40
-    elif degradation_name == "super_resolution":
-        deg = SuperResolution(image_size=image_size, T=3)
-        T = 3
     else:
         raise ValueError(degradation_name)
 
@@ -179,7 +172,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument(
         "--degradation",
-        choices=["inpainting", "generative_inpainting", "blur", "super_resolution"],
+        choices=["inpainting", "blur"],
         default="inpainting",
     )
     ap.add_argument("--total-steps", type=int, default=60_000)

@@ -10,9 +10,8 @@ import torch
 
 from src.models.unet import UNet
 from src.models.ema import EMA
-from src.degradations import GaussianMaskInpainting, GaussianBlur, SuperResolution
+from src.degradations import GaussianMaskInpainting, GaussianBlur
 from src.diffusion.cold import ColdDiffusion
-from src.generation.cold_gen import GenerativeInpainting, sample_generative
 
 DEVICE = "cpu"  # smoke test on CPU
 torch.manual_seed(0)
@@ -34,8 +33,6 @@ def test_degradations():
     for name, deg, T in [
         ("inpainting", GaussianMaskInpainting(image_size=H, T=50), 50),
         ("blur", GaussianBlur(kernel_size=11, T=40), 40),
-        ("super_resolution", SuperResolution(image_size=H, T=3), 3),
-        ("generative_inpainting", GenerativeInpainting(image_size=H, T=50), 50),
     ]:
         deg = deg.to(DEVICE)
         for tval in [0, T // 2, T]:
@@ -135,16 +132,6 @@ def test_state_consistency():
     print("  state consistency ok (with state: identical, without state: differ)")
 
 
-def test_generation():
-    deg = GenerativeInpainting(image_size=H, T=50)
-    net = UNet(image_size=H)
-    diff = ColdDiffusion(net, deg, T=50).to(DEVICE).eval()
-    out = sample_generative(diff, n=2, image_size=H, device=DEVICE)
-    assert out.shape == (2, 3, H, H), f"gen shape {out.shape}"
-    assert torch.isfinite(out).all()
-    print("  cold generation ok")
-
-
 if __name__ == "__main__":
     print("== U-Net ==");                test_unet()
     print("== Degradations ==");          test_degradations()
@@ -152,5 +139,4 @@ if __name__ == "__main__":
     print("== EMA ==");                   test_ema()
     print("== Train loop ==");            test_train_one_step()
     print("== State consistency =="); test_state_consistency()
-    print("== Cold generation ==");       test_generation()
     print("\nAll smoke tests passed.")
