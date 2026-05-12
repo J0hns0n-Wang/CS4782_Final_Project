@@ -3,7 +3,7 @@
 ## Authors: Eric Weng (ew522), Johnson Wang (jw2693)
 
 Re-implementation of _Cold Diffusion: Inverting Arbitrary Image Transforms
-Without Noise_ (Bansal et al., 2022) on CIFAR-10 and MNISTdataset. The paper shows that diffusion-style
+Without Noise_ (Bansal et al., 2022) on CIFAR-10 and MNIST dataset. The paper shows that diffusion-style
 generative models do not require Gaussian noise — any deterministic, smoothly-parameterized image
 degradation can play that role, and a generalized iterative sampler
 (Algorithm 2 in the paper) inverts it.
@@ -98,7 +98,7 @@ fully specified) to fit single-GPU training.
 
 ## 5. Reproduction Steps
 
-### Option A: End-to-end notebook (recommended)
+### End-to-end notebook (recommended)
 
 `project.ipynb` runs the full pipeline — degradations, training, all three
 samplers, and the FID/SSIM/RMSE evaluation — on both CIFAR-10 and MNIST.
@@ -110,22 +110,6 @@ so you can re-run the notebook in a fresh session without retraining.
 pip install -r requirements.txt
 jupyter lab project.ipynb
 ```
-
-### Option B: CLI (CIFAR-10 only)
-
-```bash
-pip install -r requirements.txt
-
-# CIFAR-10 inpainting (paper recipe; ~6h on a modern GPU)
-python -m code.training.train --degradation inpainting --total-steps 60000
-
-# CIFAR-10 blur
-python -m code.training.train --degradation blur --total-steps 30000
-```
-
-Additional CLI flags: `--batch-size`, `--lr`, `--run-name`, `--device`,
-`--num-workers`, `--no-augment`. MNIST runs are only wired through the
-notebook (cells §8.1 and §8.2).
 
 ### Compute
 
@@ -197,8 +181,8 @@ for smooth `D`.
 
 A few lessons stood out during reproduction:
 
-- **Direct prediction vs. iterative sampling is a trade-off, not a
-    hierarchy.** One-shot `R(x_T, T)` had the highest SSIM (0.877) because
+- **Direct prediction vs. iterative sampling is a trade-off.**
+  One-shot `R(x_T, T)` had the highest SSIM (0.877) because
     it is pixel-faithful but blurry, while Algorithm 2 traded a small amount
     of SSIM for a much better FID (12.16 vs 15.21). The "best" sampler
     depends on which metric you optimize.
@@ -211,16 +195,6 @@ A few lessons stood out during reproduction:
     converges to paper-comparable quality in 60k steps; blur takes ~700k in
     the paper, and our 30k-step blur run shows the Alg 1 vs Alg 2 trend but
     with noisier reconstructions.
-
-Beyond the core reproduction, we extended the pipeline to MNIST (same
-architecture, smaller training budget) and added a side experiment
-(Algorithm 3) that averages `x̂_0` predictions across sampler steps. The
-extensions are reported but do not affect the main claim, which holds
-cleanly on the CIFAR-10 inpainting task we set out to reproduce. Our
-final FID of 12.16 lands within a few points of the paper's 8.9 despite a
-smaller U-Net and no architectural search — close enough that we are
-confident the result is reproducible, with the remaining gap attributable
-to compute budget and architecture size rather than methodology.
 
 ## 8. References
 
@@ -244,5 +218,3 @@ for project guidance. The reference Cold Diffusion implementation by the
 original authors is at
 [github.com/arpitbansal297/Cold-Diffusion-Models](https://github.com/arpitbansal297/Cold-Diffusion-Models);
 we wrote our code from scratch using the paper as the spec.
-
-Authors: **Johnson Wang** (jw2693), **Eric Weng** (ew522).
