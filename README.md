@@ -124,27 +124,23 @@ steps, Gaussian mask with random per-image center) evaluated on the full
 
 ### Qualitative — sampler comparison
 
-![CIFAR-10 inpainting reconstructions](IMG_7081.png)
+![CIFAR-10 inpainting reconstructions](results/CIFAR/inpainting_qualitative.png)
 
-Rows, top to bottom: **degraded input** (mask roughly blacks out 30–40% of
-the image), **Algorithm 1 (naive)**, **Algorithm 2 (paper)**, **Algorithm
-3 (EMA, α=0.3)**, **original**. Algorithm 1 visibly collapses — colorful
-blob artifacts that compound across the T sampler steps because each step
-re-degrades a fresh prediction. Algorithm 2 reconstructs the masked region
-cleanly and matches the originals; Algorithm 3 looks essentially
-indistinguishable from Algorithm 2 in this column-by-column comparison.
+- Algorithm 1 visibly collapses — colorful blob artifacts that compound across the T sampler steps because each step
+  re-degrades a fresh prediction.
+- Algorithm 2 reconstructs the masked region
+  cleanly and matches the originals;
+- Algorithm 3 looks essentially indistinguishable from Algorithm 2 in this column-by-column comparison.
 
 ### Quantitative — FID / SSIM / RMSE on the test set
 
-![CIFAR-10 inpainting metrics table](image.png)
-
 Columns are **degraded | direct R(x_T, T) | Algorithm 1 (naive) | Algorithm 2 (sampled)**.
 
-|          | Degraded  | Direct  | Alg 1 (naive)  | Alg 2 (sampled)  |
-| -------- | --------- | ------- | -------------- | ---------------- |
-| FID ↓    | 70.73     | 15.21   | **123.17**     | **12.16**        |
-| SSIM ↑   | 0.579     | 0.877   | **0.440**      | 0.807            |
-| RMSE ↓   | 0.302     | 0.071   | **0.248**      | **0.081**        |
+|          | Degraded  | Direct  | Alg 1 (naive) | Alg 2 (sampled)  |
+| -------- | --------- | ------- | ------------- | ---------------- |
+| FID ↓    | 70.73     | 15.21   | 123.17        | 12.16            |
+| SSIM ↑   | 0.579     | 0.877   | 0.440         | 0.807            |
+| RMSE ↓   | 0.302     | 0.071   | 0.248         | 0.081            |
 
 Two things stand out, and together they make the paper's claim concrete:
 
@@ -197,17 +193,10 @@ A few lessons stood out during reproduction:
 
 ## 8. References
 
-- Bansal, A. et al. _Cold Diffusion: Inverting Arbitrary Image Transforms
-    Without Noise._ arXiv:2208.09392, 2022.
-- Ho, J., Jain, A., Abbeel, P. _Denoising Diffusion Probabilistic Models._
-    NeurIPS 2020.
-- Song, J., Meng, C., Ermon, S. _Denoising Diffusion Implicit Models._
-    ICLR 2021.
-- Krizhevsky, A. _Learning Multiple Layers of Features from Tiny Images._
-    Tech report, 2009 (CIFAR-10).
-- Hendrycks, D., Dietterich, T. _Benchmarking Neural Network Robustness
-    to Common Corruptions and Perturbations._ ICLR 2019 (snowification, used
-    as reference but not implemented here).
+- Bansal, A. et al. _Cold Diffusion: Inverting Arbitrary Image Transforms Without Noise._ arXiv:2208.09392, 2022.
+- Ho, J., Jain, A., Abbeel, P. _Denoising Diffusion Probabilistic Models._ NeurIPS 2020.
+- Song, J., Meng, C., Ermon, S. _Denoising Diffusion Implicit Models._ ICLR 2021.
+- Krizhevsky, A. _Learning Multiple Layers of Features from Tiny Images._ Tech report, 2009 (CIFAR-10).
 - PyTorch, torchvision, torchmetrics.
 
 ## 9. Acknowledgements
