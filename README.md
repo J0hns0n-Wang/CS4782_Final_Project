@@ -26,12 +26,8 @@ qualitative and quantitative results similar to the paper.
 
 Two results, both on CIFAR-10 and MNIST dataset:
 
-1. **Reconstruction quality** for the masking and blurring tasks (paper
-      Tables 1–2): FID / SSIM / RMSE of the degraded, direct, and Algorithm-2
-      sampled images vs. the test set.
-2. **Sampler comparison** (paper Figure 2 and Appendix A.7): same trained
-      model, Algorithm 1 vs Algorithm 2 — Algorithm 1 visibly fails to invert
-      smooth degradations.
+1. **Reconstruction quality** for the masking and blurring tasks (paper Tables 1–2): FID / SSIM / RMSE of the degraded, direct, and Algorithm-2 sampled images vs. the test set.
+2. **Sampler comparison** (paper Figure 2 and Appendix A.7): same trained model, Algorithm 1 vs Algorithm 2 — Algorithm 1 visibly fails to invert smooth degradations.
 
 ## 3. GitHub Contents
 
@@ -58,12 +54,9 @@ padded to 32×32).
 
 ### Degradations (per the paper's Appendix A)
 
-- _Inpainting_: Gaussian mask `1 - exp(-d²/2β²)` with β starting at 1 and
-    growing by 0.1 per step, T=50, randomized mask center per image.
-- _Blur_ (CIFAR): 11×11 Gaussian kernel applied recursively, σ_t = 0.01·t + 0.35,
-    T=40.
-- _Blur_ (MNIST): more aggressive 17×17 kernel with σ_t = 0.05·t + 0.5,
-    T=40, so digits degrade to near-uniform blobs by t=T.
+- _Inpainting_: Gaussian mask `1 - exp(-d²/2β²)` with β starting at 1 and growing by 0.1 per step, T=50, randomized mask center per image.
+- _Blur_ (CIFAR): 11×11 Gaussian kernel applied recursively, σ_t = 0.01·t + 0.35, T=40.
+- _Blur_ (MNIST): more aggressive 17×17 kernel with σ_t = 0.05·t + 0.5, T=40, so digits degrade to near-uniform blobs by t=T.
 
 ### Training
 
@@ -82,13 +75,9 @@ EMA decay 0.995 updated every 10 grad steps.
 
 Three reverse rules, all sharing the same trained model:
 
-- **Algorithm 1** (naive): `x_{t-1} = D(R(x_t, t), t-1)`. Compounds error
-    because each step re-degrades a fresh prediction.
-- **Algorithm 2** (paper §3.3, headline result): `x_{t-1} = x_t - D(x̂_0, t) + D(x̂_0, t-1)`.
-    First-order correction that anchors the update to the current `x_t`.
-- **Algorithm 3** (our proposed experiment): same as Alg 2 but with an EMA over
-    `x̂_0` across sampler steps. Implemented in `code/diffusion/cold.py` as
-    `ColdDiffusion.sample_ema()`.
+- **Algorithm 1** (naive): `x_{t-1} = D(R(x_t, t), t-1)`. Compounds error because each step re-degrades a fresh prediction.
+- **Algorithm 2** (paper §3.3, headline result): `x_{t-1} = x_t - D(x̂_0, t) + D(x̂_0, t-1)`. First-order correction that anchors the update to the current `x_t`.
+- **Algorithm 3** (our proposed experiment): same as Alg 2 but with an EMA over `x̂_0` across sampler steps. Implemented in `code/diffusion/cold.py` as `ColdDiffusion.sample_ema()`.
 
 ### Modifications vs. paper
 
@@ -113,7 +102,7 @@ jupyter lab project.ipynb
 ### Compute
 
 GPU is strongly recommended. CIFAR-10 inpainting at 60k steps takes ~6h on
-a modern GPU; the lighter 30k runs (CIFAR blur, MNIST) finish in 1–2h. Full
+a T4 GPU and ~3h on a H100 GPU; the lighter 30k runs (CIFAR blur, MNIST) finish in 1–2h. Full
 training on CPU is impractical.
 
 ## 6. Results / Insights
@@ -169,27 +158,16 @@ inpainting numbers: the same trained restoration network produces a
 near-useless reconstruction under Algorithm 1 (FID 123.17, worse than the
 degraded input) and the paper's headline-quality reconstruction under
 Algorithm 2 (FID 12.16). The model never changes — only the reverse rule
-does. The first-order correction in Algorithm 2 (`x_t - D(x̂_0, t) + D(x̂_0, t-1)`)
-is therefore not a tuning detail but the load-bearing piece of the
-method: it is the difference between "works" and "compounding artifacts"
-for smooth `D`.
+does. Algorithm 2’s update is not just a small implementation detail. It is the key reason the sampler works: instead of replacing the whole image at each step, it makes a small correction from timestep t to t−1. For smooth degradations like blur, this prevents errors from piling up and creating artifacts.
 
 A few lessons stood out during reproduction:
 
 - **Direct prediction vs. iterative sampling is a trade-off.**
-  One-shot `R(x_T, T)` had the highest SSIM (0.877) because
-    it is pixel-faithful but blurry, while Algorithm 2 traded a small amount
-    of SSIM for a much better FID (12.16 vs 15.21). The "best" sampler
-    depends on which metric you optimize.
+  One-shot `R(x_T, T)` had the highest SSIM (0.877) because it is pixel-faithful but blurry, while Algorithm 2 traded a small amount of SSIM for a much better FID (12.16 vs 15.21). The "best" sampler depends on which metric you optimize.
 - **Mask state must be shared between the forward and reverse passes.**
-    With per-image randomized mask centers, sampling falls apart unless the
-    same mask state is threaded through `q_sample` and every `D`-call inside
-    the sampler. This isn't called out in the paper but is essential for the
-    numbers to come out right.
-- **Compute budget matters more for blur than inpainting.** Inpainting
-    converges to paper-comparable quality in 60k steps; blur takes ~700k in
-    the paper, and our 30k-step blur run shows the Alg 1 vs Alg 2 trend but
-    with noisier reconstructions.
+  With per-image randomized mask centers, sampling falls apart unless the same mask state is threaded through `q_sample` and every `D`-call inside the sampler. This isn't called out in the paper but is essential for the numbers to come out right.
+- **Compute budget matters more for blur than inpainting.**
+  Inpainting converges to paper-comparable quality in 60k steps; blur takes ~700k in the paper, and our 30k-step blur run shows the Alg 1 vs Alg 2 trend but with noisier reconstructions.
 
 ## 8. References
 
