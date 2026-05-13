@@ -67,7 +67,7 @@ EMA decay 0.995 updated every 10 grad steps.
 | Run               | Dataset   | Degradation          | Steps                   |
 | ----------------- | --------- | -------------------- | ----------------------- |
 | CIFAR inpainting  | CIFAR-10  | Gaussian mask, T=50  | 60k (paper recipe)      |
-| CIFAR blur        | CIFAR-10  | Gaussian blur, T=40  | 30k (compute-budgeted)  |
+| CIFAR blur        | CIFAR-10  | Gaussian blur, T=40  | 100k (compute-budgeted) |
 | MNIST inpainting  | MNIST     | Gaussian mask, T=50  | 30k                     |
 | MNIST blur        | MNIST     | severe blur, T=40    | 30k                     |
 
